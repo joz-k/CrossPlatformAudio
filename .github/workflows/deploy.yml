@@ -29,8 +29,8 @@ jobs:
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v12
         with:
-          version: latest # Or a specific version like '3.1.55'
-          actions-cache-folder: emsdk-cache
+          version: '3.1.55' # Or "latest"
+          cache-key: 'emsdk-cache'
 
       # Step 3: Run the CMake configuration and build the project.
       # This is the same process we've been doing manually.
