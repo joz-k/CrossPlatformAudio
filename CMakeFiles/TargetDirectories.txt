@@ -1,0 +1,3 @@
+/home/runner/work/CrossPlatformAudio/CrossPlatformAudio/build-web/CMakeFiles/CrossPlatformAudio.dir
+/home/runner/work/CrossPlatformAudio/CrossPlatformAudio/build-web/CMakeFiles/edit_cache.dir
+/home/runner/work/CrossPlatformAudio/CrossPlatformAudio/build-web/CMakeFiles/rebuild_cache.dir

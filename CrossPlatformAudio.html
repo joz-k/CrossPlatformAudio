@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>C++ Audio (DSP Worker)</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; }
+        #controlButton { font-size: 1.5em; }
+    </style>
+  </head>
+  <body>
+    <h1>C++ WebAssembly Audio Engine (With a dedicated DSP Worker)</h1>
+    <button id="controlButton">Start Audio</button>
+    <div id="status"></div>
+
+    <!-- This special tag is where Emscripten injects its JS loader -->
+    <script async type="text/javascript" src="CrossPlatformAudio.js"></script>
+
+    <script type='text/javascript'>
+      const controlButton = document.getElementById('controlButton');
+      const statusElement = document.getElementById('status');
+
+      // This is a global "struct" to hold all our audio components.
+      const audioSystem = {
+        audioContext: null,
+        dspWorker: null,
+        isReady: false
+      };
+
+      // This function is the main setup routine, called only once.
+      async function setupAudio() {
+        // Create the AudioContext.
+        audioSystem.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioSystem.dspWorker = new Worker('dsp-worker.js');
+        await audioSystem.audioContext.audioWorklet.addModule('audioworklet-processor.js');
+
+        const buffer_frames = 8192;
+        const audio_sab = new SharedArrayBuffer(buffer_frames * 2 * 4);
+        const state_sab = new SharedArrayBuffer(2 * 4);
+
+        // Get the real Sample Rate
+        const actual_sample_rate = audioSystem.audioContext.sampleRate;
+        statusElement.textContent = `AudioContext created at ${actual_sample_rate} Hz. Initializing DSP worker...`;
+
+        audioSystem.dspWorker.postMessage({
+            type: 'init',
+            wasm_module_name: 'CrossPlatformAudio.js',
+            sample_rate: actual_sample_rate, // Pass the correct sample rate
+            audio_sab: audio_sab,
+            state_sab: state_sab
+        });
+
+        const workletNode = new AudioWorkletNode(audioSystem.audioContext, 'cpp-audio-processor');
+
+        workletNode.port.postMessage({ 
+          audio_sab: audio_sab,
+          state_sab: state_sab
+        });
+
+        workletNode.port.onmessage = (event) => {
+          if (event.data.type === 'request_data') {
+            audioSystem.dspWorker.postMessage({ type: 'request_data' });
+          }
+        };
+
+        workletNode.connect(audioSystem.audioContext.destination);
+
+        audioSystem.dspWorker.onmessage = (event) => {
+            if (event.data.type === 'ready') {
+                console.log("All systems ready.");
+                audioSystem.isReady = true;
+                statusElement.textContent = 'Ready. Click Start Audio.';
+            }
+        };
+      }
+
+      async function toggleAudio() {
+        if (!audioSystem.audioContext) await setupAudio();
+
+        if (!audioSystem.isReady) {
+            statusElement.textContent = "Please wait, DSP worker is initializing...";
+            return;
+        }
+
+        if (audioSystem.audioContext.state === 'running') {
+            await audioSystem.audioContext.suspend();
+            controlButton.textContent = 'Resume Audio';
+        } else {
+            await audioSystem.audioContext.resume();
+            controlButton.textContent = 'Pause Audio';
+        }
+      }
+
+      // This registers the service worker that adds the COOP/COEP headers.
+      if (typeof SharedArrayBuffer === 'undefined') {
+        statusElement.innerHTML = "Error: Your browser does not support SharedArrayBuffer. <br> Please use a modern browser like Chrome or Firefox.";
+        controlButton.disabled = true;
+      } else {
+        // Register the service worker
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('coop-coep-sw.js').then(
+            (registration) => console.log('Service Worker registration successful with scope: ', registration.scope),
+            (error) => console.log('Service Worker registration failed: ', error)
+          );
+        } else {
+            console.log('Service workers are not supported.');
+        }
+      }
+
+      // Emscripten boilerplate to initialize the C++ code when the WASM is ready.
+      var Module = {
+        onRuntimeInitialized: function() {
+          Module.callMain(); // Runs the C++ main() function.
+          controlButton.disabled = false;
+          controlButton.addEventListener('click', toggleAudio);
+          statusElement.textContent = 'WASM Ready. Click Start Audio to initialize audio systems.';
+        }
+      };
+
+      controlButton.disabled = true;
+    </script>
+  </body>
+</html>
+
