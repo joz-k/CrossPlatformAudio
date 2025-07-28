@@ -29,7 +29,7 @@ if(EMSCRIPTEN)
     file(COPY
         "${CMAKE_CURRENT_SOURCE_DIR}/src/audioworklet-processor.js"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/dsp-worker.js"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/coi-serviceworker.js"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/coi-serviceworker.min.js"
         DESTINATION "${CMAKE_BINARY_DIR}")
 
     target_link_options(CrossPlatformAudio PRIVATE
