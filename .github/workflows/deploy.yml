@@ -1,44 +1,37 @@
-# This name will appear in the "Actions" tab of your GitHub repository.
+# Workflow for deploying to GitHub Pages.
 name: Deploy to GitHub Pages
 
-# This section defines when the workflow will run.
 on:
-  # Run automatically every time you push to the 'main' branch.
   push:
     branches:
       - main
-  # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
-  
-# This grants the GITHUB_TOKEN write access to the repository's contents,
-# which is required for the action to push to the gh-pages branch.
-permissions:
-  contents: write
-  
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
-jobs:
-  # This workflow contains a single job called "build-and-deploy".
-  build-and-deploy:
-    # The type of runner that the job will run on.
-    runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job.
+# Grant the GITHUB_TOKEN the necessary permissions to create a deployment.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Use a concurrency group to ensure that only one deployment happens at a time.
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  # Job 1: Build the project and upload the build artifacts.
+  build:
+    runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out your repository under $GITHUB_WORKSPACE, so your job can access it.
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up the Emscripten SDK environment.
-      # This action downloads and activates the specified version of the Emscripten SDK.
-      # We use a cache to make subsequent builds much faster.
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v12
         with:
-          version: '3.1.55' # Or "latest"
+          version: '3.1.55'
           cache-key: 'emsdk-cache'
 
-      # Step 3: Run the CMake configuration and build the project.
-      # This is the same process we've been doing manually.
       - name: Build WebAssembly project
         run: |
           mkdir -p build-web
@@ -46,14 +39,30 @@ jobs:
           emcmake cmake ..
           cmake --build .
 
-      # Step 4: Deploy the contents of the build directory to the 'gh-pages' branch.
-      # This action handles all the git commands needed to push your build artifacts
-      # to a special branch that GitHub Pages uses for hosting.
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          # This token is automatically provided by GitHub Actions for authentication.
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          # This is the directory that contains the files to be deployed.
-          publish_dir: ./build-web
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
+      # This action packages the entire 'build-web' directory into a special zip file
+      # called 'github-pages' that the 'deploy' job can access.
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './build-web'
+
+  # Job 2: Deploy the uploaded artifact to GitHub Pages.
+  deploy:
+    # This job requires the 'build' job to have completed successfully.
+    needs: build
+    
+    # The permissions are inherited from the top level.
+    runs-on: ubuntu-latest
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # This is the official action for deploying the artifact. It handles everything.
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
