@@ -20,7 +20,7 @@
     <script type='text/javascript'>
       const controlButton = document.getElementById('controlButton');
       const statusElement = document.getElementById('status');
-      
+
       // This registers the service worker that adds the COOP/COEP headers.
       if (typeof SharedArrayBuffer === 'undefined') {
         statusElement.innerHTML = "Error: Your browser does not support SharedArrayBuffer. <br> Please use a modern browser like Chrome or Firefox.";
@@ -36,7 +36,7 @@
             console.log('Service workers are not supported.');
         }
       }
-      
+
       // This is a global "struct" to hold all our audio components.
       const audioSystem = {
         audioContext: null,
@@ -44,6 +44,43 @@
         isReady: false
       };
 
+      // --- Service Worker Activation ---
+      // This logic ensures the page reloads itself if the COOP/COEP headers
+      // are not present, which happens on the very first page load.
+      if (typeof SharedArrayBuffer === 'undefined') {
+        statusElement.innerHTML = "SharedArrayBuffer is not available. <br> Attempting to activate COOP/COEP headers via Service Worker reload...";
+        controlButton.disabled = true;
+
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('coop-coep-sw.js').then(
+            (registration) => {
+              console.log('Service Worker registered. Reloading page to activate headers.');
+              location.reload();
+            },
+            (error) => {
+              console.error('Service Worker registration failed: ', error);
+              statusElement.textContent = 'Error: Service Worker registration failed. Cannot enable SharedArrayBuffer.';
+            }
+          );
+        } else {
+          statusElement.textContent = 'Error: Service Workers are not supported. Cannot enable SharedArrayBuffer.';
+        }
+      } else {
+        // SharedArrayBuffer is available, proceed with initializing the application.
+        initializeApplication();
+      }
+
+      // The main application logic, guaranteed to run only when SharedArrayBuffer is available.
+      function initializeApplication() {
+        var Module = {
+          onRuntimeInitialized: function() {
+            Module.callMain();
+            controlButton.disabled = false;
+            controlButton.addEventListener('click', toggleAudio);
+            statusElement.textContent = 'WASM Ready. Click Start Audio to initialize audio systems.';
+          }
+        };
+      }
       // This function is the main setup routine, called only once.
       async function setupAudio() {
         // Create the AudioContext.
@@ -82,6 +119,7 @@
 
         workletNode.connect(audioSystem.audioContext.destination);
 
+        // Wait for the 'ready' signal from the DSP worker before enabling the UI.
         audioSystem.dspWorker.onmessage = (event) => {
             if (event.data.type === 'ready') {
                 console.log("All systems ready.");
@@ -107,7 +145,6 @@
             controlButton.textContent = 'Pause Audio';
         }
       }
-      
       // Emscripten boilerplate to initialize the C++ code when the WASM is ready.
       var Module = {
         onRuntimeInitialized: function() {
