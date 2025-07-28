@@ -21,38 +21,53 @@
       const controlButton = document.getElementById('controlButton');
       const statusElement = document.getElementById('status');
 
-      // This is a global "struct" to hold all our audio components.
+      // This is the global "struct" to hold all our audio components.
       const audioSystem = {
         audioContext: null,
         dspWorker: null,
         isReady: false
       };
 
-      // This robust service worker loader is still needed for the first-visit-reload problem.
+      // The `Module` object must be defined in the global scope before the
+      // Emscripten script runs, so it can be found.
+      var Module = {
+        // We will populate this in the main logic.
+        onRuntimeInitialized: null 
+      };
+
+      // This self-executing async function is our main entry point.
       (async () => {
+        // Step 1: Handle the Service Worker and COOP/COEP headers.
         if (typeof SharedArrayBuffer === 'undefined') {
           statusElement.innerHTML = "SharedArrayBuffer is not available. <br> Activating headers via Service Worker and reloading...";
           controlButton.disabled = true;
           const registration = await navigator.serviceWorker.register('coop-coep-sw.js');
+          // Wait for the service worker to actually take control before reloading.
           await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve));
           console.log("Service Worker has taken control. Reloading page.");
           location.reload();
-        } else {
-          initializeApplication();
+          return; // Stop execution; the page will reload.
         }
+
+        // If we get here, SharedArrayBuffer is available. It's safe to proceed.
+        statusElement.textContent = 'COOP/COEP Headers active. Waiting for WASM runtime...';
+
+        // Step 2: Define the onRuntimeInitialized callback.
+        // This function will be called by the Emscripten loader once the WASM is ready.
+        Module.onRuntimeInitialized = () => {
+          console.log('Emscripten runtime initialized.');
+
+          // The C++ main() function runs to initialize the C++ side.
+          Module.callMain(); 
+
+          // Now that the C++ side is ready, enable the UI.
+          controlButton.disabled = false;
+          controlButton.addEventListener('click', toggleAudio);
+          statusElement.textContent = 'WASM Ready. Click Start Audio to initialize audio systems.';
+        };
+
       })();
 
-      // The main application logic, guaranteed to run only when SharedArrayBuffer is available.
-      function initializeApplication() {
-        var Module = {
-          onRuntimeInitialized: function() {
-            Module.callMain();
-            controlButton.disabled = false;
-            controlButton.addEventListener('click', toggleAudio);
-            statusElement.textContent = 'WASM Ready. Click Start Audio to initialize audio systems.';
-          }
-        };
-      }
       // This function is the main setup routine, called only once.
       async function setupAudio() {
         // Create the AudioContext.
@@ -113,6 +128,8 @@
             controlButton.textContent = 'Pause Audio';
         }
       }
+      
+      controlButton.disabled = true;
     </script>
   </body>
 </html>
