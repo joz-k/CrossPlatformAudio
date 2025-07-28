@@ -1,0 +1,54 @@
+# This name will appear in the "Actions" tab of your GitHub repository.
+name: Deploy to GitHub Pages
+
+# This section defines when the workflow will run.
+on:
+  # Run automatically every time you push to the 'main' branch.
+  push:
+    branches:
+      - main
+  # Allows you to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
+jobs:
+  # This workflow contains a single job called "build-and-deploy".
+  build-and-deploy:
+    # The type of runner that the job will run on.
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job.
+    steps:
+      # Step 1: Check out your repository under $GITHUB_WORKSPACE, so your job can access it.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up the Emscripten SDK environment.
+      # This action downloads and activates the specified version of the Emscripten SDK.
+      # We use a cache to make subsequent builds much faster.
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v12
+        with:
+          version: latest # Or a specific version like '3.1.55'
+          actions-cache-folder: emsdk-cache
+
+      # Step 3: Run the CMake configuration and build the project.
+      # This is the same process we've been doing manually.
+      - name: Build WebAssembly project
+        run: |
+          mkdir -p build-web
+          cd build-web
+          emcmake cmake ..
+          cmake --build .
+
+      # Step 4: Deploy the contents of the build directory to the 'gh-pages' branch.
+      # This action handles all the git commands needed to push your build artifacts
+      # to a special branch that GitHub Pages uses for hosting.
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          # This token is automatically provided by GitHub Actions for authentication.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # This is the directory that contains the files to be deployed.
+          publish_dir: ./build-web
+

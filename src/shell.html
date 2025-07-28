@@ -92,6 +92,22 @@
         }
       }
 
+      // This registers the service worker that adds the COOP/COEP headers.
+      if (typeof SharedArrayBuffer === 'undefined') {
+        statusElement.innerHTML = "Error: Your browser does not support SharedArrayBuffer. <br> Please use a modern browser like Chrome or Firefox.";
+        controlButton.disabled = true;
+      } else {
+        // Register the service worker
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('coop-coep-sw.js').then(
+            (registration) => console.log('Service Worker registration successful with scope: ', registration.scope),
+            (error) => console.log('Service Worker registration failed: ', error)
+          );
+        } else {
+            console.log('Service workers are not supported.');
+        }
+      }
+
       // Emscripten boilerplate to initialize the C++ code when the WASM is ready.
       var Module = {
         onRuntimeInitialized: function() {

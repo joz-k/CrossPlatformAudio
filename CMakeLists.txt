@@ -25,10 +25,11 @@ if(EMSCRIPTEN)
         SUFFIX ".html"
     )
 
-    # Copy worker files to the output directory.
+    # Copy all necessary worker files to the output directory
     file(COPY
         "${CMAKE_CURRENT_SOURCE_DIR}/src/audioworklet-processor.js"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/dsp-worker.js"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/coop-coep-sw.js"
         DESTINATION "${CMAKE_BINARY_DIR}")
 
     target_link_options(CrossPlatformAudio PRIVATE
