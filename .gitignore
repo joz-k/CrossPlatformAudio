@@ -1,0 +1,94 @@
+# ===================================================================
+# Build Artifacts
+# ===================================================================
+# Build directories are the primary and most robust way to ignore generated files.
+# This covers both native and web builds (e.g., build-native, build-web).
+build/
+build-*/
+
+# CMake-generated files (for users who might accidentally build in-source)
+CMakeCache.txt
+CMakeLists.txt.user
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# As a safeguard against accidental in-source builds, also ignore the specific
+# output files if they appear in the project root.
+# The leading '/' anchors the pattern to the project's root directory.
+/CrossPlatformAudio.html
+/CrossPlatformAudio.js
+/CrossPlatformAudio.wasm
+/CrossPlatformAudio.wasm.map
+/CrossPlatformAudio.wasm.debug
+/CrossPlatformAudio.symbols
+/CrossPlatformAudio.mem
+
+# Common executable and object file extensions
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# ===================================================================
+# IDE and Editor Specific Files
+# ===================================================================
+# Visual Studio Code
+.vscode/
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+Debug/
+Release/
+x64/
+Win32/
+*.suo
+*.user
+
+# CLion
+.idea/
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+
+# Qt Creator
+*.pro.user
+*.pro.user.*
+
+# ===================================================================
+# Operating System Specific Files
+# ===================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.ds
+Desktop.ini
+
+# ===================================================================
+# Other Common Files
+# ===================================================================
+# Log files
+*.log
+
+# Coredump files
+core
+*.stackdump
+
+# Python server cache
+__pycache__/
+*.pyc
+
