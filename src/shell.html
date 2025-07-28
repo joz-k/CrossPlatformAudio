@@ -13,6 +13,7 @@
     <h1>C++ WebAssembly Audio Engine (With a dedicated DSP Worker)</h1>
     <button id="controlButton">Start Audio</button>
     <div id="status"></div>
+    <script src="coi-serviceworker.js"></script>
 
     <!-- This special tag is where Emscripten injects its JS loader -->
     {{{ SCRIPT }}}
@@ -37,22 +38,16 @@
 
       // This self-executing async function is our main entry point.
       (async () => {
-        // Step 1: Handle the Service Worker and COOP/COEP headers.
         if (typeof SharedArrayBuffer === 'undefined') {
-          statusElement.innerHTML = "SharedArrayBuffer is not available. <br> Activating headers via Service Worker and reloading...";
+          statusElement.innerHTML = "SharedArrayBuffer is not available.";
           controlButton.disabled = true;
-          const registration = await navigator.serviceWorker.register('coop-coep-sw.js');
-          // Wait for the service worker to actually take control before reloading.
-          await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve));
-          console.log("Service Worker has taken control. Reloading page.");
-          location.reload();
-          return; // Stop execution; the page will reload.
+          return;
         }
 
         // If we get here, SharedArrayBuffer is available. It's safe to proceed.
         statusElement.textContent = 'COOP/COEP Headers active. Waiting for WASM runtime...';
 
-        // Step 2: Define the onRuntimeInitialized callback.
+        // Define the onRuntimeInitialized callback.
         // This function will be called by the Emscripten loader once the WASM is ready.
         Module.onRuntimeInitialized = () => {
           console.log('Emscripten runtime initialized.');
@@ -128,7 +123,7 @@
             controlButton.textContent = 'Pause Audio';
         }
       }
-      
+
       controlButton.disabled = true;
     </script>
   </body>
