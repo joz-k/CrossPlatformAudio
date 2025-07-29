@@ -70,7 +70,7 @@
         audioSystem.dspWorker = new Worker('dsp-worker.js');
         await audioSystem.audioContext.audioWorklet.addModule('audioworklet-processor.js');
 
-        const buffer_frames = 8192;
+        const buffer_frames = 81920;
         const audio_sab = new SharedArrayBuffer(buffer_frames * 2 * 4);
         const state_sab = new SharedArrayBuffer(2 * 4);
 
