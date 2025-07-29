@@ -28,7 +28,6 @@ if(EMSCRIPTEN)
     # Copy all necessary worker files to the output directory
     file(COPY
         "${CMAKE_CURRENT_SOURCE_DIR}/src/audioworklet-processor.js"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/dsp-worker.js"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/coi-serviceworker.min.js"
         DESTINATION "${CMAKE_BINARY_DIR}")
 
@@ -36,7 +35,9 @@ if(EMSCRIPTEN)
         "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/src/shell.html"
         "--bind"
         "-sALLOW_MEMORY_GROWTH=1"
-        "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,HEAPF32,callMain"
+        "-sSHARED_MEMORY"
+        # We need HEAPF32 for the main thread to access memory.
+        "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,callMain,HEAPF32"
         "-sEXPORTED_FUNCTIONS=_malloc,_free,_main,_generate_audio_data,_set_sample_rate"
     )
 
