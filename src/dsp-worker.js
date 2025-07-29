@@ -99,7 +99,6 @@ function produceAudio() {
         write_ptr = (write_ptr + frames_to_generate) % BUFFER_CAPACITY_FRAMES;
         Atomics.store(state_view, 1, write_ptr);
     }
-}
 
     // Tell the worklet that we are done producing for now.
     self.postMessage({ type: 'data_produced' });
