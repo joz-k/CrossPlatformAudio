@@ -89,6 +89,7 @@
         const workletNode = new AudioWorkletNode(audioSystem.audioContext, 'cpp-audio-processor');
         workletNode.port.postMessage({ audio_sab: audio_sab, state_sab: state_sab });
 
+        // The handler for when the Audio Worklet requests more data.
         workletNode.port.onmessage = (event) => {
           if (event.data.type === 'request_data') {
             audioSystem.dspWorker.postMessage({ type: 'request_data' });
@@ -97,12 +98,16 @@
 
         workletNode.connect(audioSystem.audioContext.destination);
 
-        // Wait for the 'ready' signal from the DSP worker before enabling the UI.
+        // The handler for when the DSP Worker has finished its work.
         audioSystem.dspWorker.onmessage = (event) => {
             if (event.data.type === 'ready') {
                 console.log("All systems ready.");
                 audioSystem.isReady = true;
                 statusElement.textContent = 'Ready. Click Start Audio.';
+            }
+            // Forward the 'data_produced' message to the worklet.
+            else if (event.data.type === 'data_produced') {
+                workletNode.port.postMessage({ type: 'data_produced' });
             }
         };
       }
