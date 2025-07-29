@@ -51,7 +51,7 @@ self.onmessage = (event) => {
 };
 
 function produceAudio() {
-    const buffer_capacity = 8192;
+    const buffer_capacity = 81920;
     let read_ptr = Atomics.load(state_view, 0);
     let write_ptr = Atomics.load(state_view, 1);
 
