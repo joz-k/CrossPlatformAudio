@@ -26,66 +26,69 @@
       const audioSystem = {
         audioContext: null,
         dspWorker: null,
-        isReady: false
       };
 
-      // The `Module` object must be defined in the global scope before the
-      // Emscripten script runs, so it can be found.
-      var Module = {
-        // We will populate this in the main logic.
-        onRuntimeInitialized: null 
-      };
 
       // This self-executing async function is our main entry point.
       (async () => {
         if (typeof SharedArrayBuffer === 'undefined') {
-          statusElement.innerHTML = "SharedArrayBuffer is not available.";
+          statusElement.innerHTML = "SharedArrayBuffer is not available. <br>Try reloading the page"
           controlButton.disabled = true;
-          return;
+          return; // Stop execution; the page will reload.
         }
 
         // If we get here, SharedArrayBuffer is available. It's safe to proceed.
         statusElement.textContent = 'COOP/COEP Headers active. Waiting for WASM runtime...';
 
-        // Define the onRuntimeInitialized callback.
-        // This function will be called by the Emscripten loader once the WASM is ready.
-        Module.onRuntimeInitialized = () => {
-          console.log('Emscripten runtime initialized.');
-
-          // The C++ main() function runs to initialize the C++ side.
-          Module.callMain(); 
-
-          // Now that the C++ side is ready, enable the UI.
-          controlButton.disabled = false;
-          controlButton.addEventListener('click', toggleAudio);
-          statusElement.textContent = 'WASM Ready. Click Start Audio to initialize audio systems.';
+        // Step 2: Set up the Emscripten Module object in the global scope.
+        var Module = {
+          onRuntimeInitialized: () => {
+            console.log('Emscripten runtime initialized.');
+            Module.callMain();
+            controlButton.disabled = false;
+            controlButton.addEventListener('click', toggleAudio);
+            statusElement.textContent = 'WASM Ready. Click Start Audio to initialize audio systems.';
+          }
         };
-
       })();
 
-      // This function is the main setup routine, called only once.
+      // This function is now the single, atomic setup-and-play entry point.
       async function setupAudio() {
-        // Create the AudioContext.
+        statusElement.textContent = `Initializing audio systems...`;
+
         audioSystem.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         audioSystem.dspWorker = new Worker('dsp-worker.js');
         await audioSystem.audioContext.audioWorklet.addModule('audioworklet-processor.js');
 
-        const buffer_frames = 81920;
+        const buffer_frames = 8192;
         const audio_sab = new SharedArrayBuffer(buffer_frames * 2 * 4);
         const state_sab = new SharedArrayBuffer(2 * 4);
 
         // Get the real Sample Rate
         const actual_sample_rate = audioSystem.audioContext.sampleRate;
-        statusElement.textContent = `AudioContext created at ${actual_sample_rate} Hz. Initializing DSP worker...`;
+        statusElement.textContent = `AudioContext created at ${actual_sample_rate} Hz. Waiting for DSP worker...`;
 
-        audioSystem.dspWorker.postMessage({
-            type: 'init',
-            wasm_module_name: 'CrossPlatformAudio.js',
-            sample_rate: actual_sample_rate, // Pass the correct sample rate
-            audio_sab: audio_sab,
-            state_sab: state_sab
+        // We now wrap the entire DSP worker initialization in a Promise.
+        // This function will not resolve until the worker sends the 'ready' message.
+        await new Promise(resolve => {
+            audioSystem.dspWorker.onmessage = (event) => {
+                if (event.data.type === 'ready') {
+                    console.log("DSP Worker is ready.");
+                    resolve(); // Resolve the promise, allowing setupAudio to continue.
+                }
+            };
+            
+            // Send the initialization message to the DSP worker.
+            audioSystem.dspWorker.postMessage({
+                type: 'init',
+                wasm_module_name: 'CrossPlatformAudio.js',
+                sample_rate: actual_sample_rate,
+                audio_sab: audio_sab,
+                state_sab: state_sab
+            });
         });
 
+        statusElement.textContent = 'All systems ready.';
         const workletNode = new AudioWorkletNode(audioSystem.audioContext, 'cpp-audio-processor');
         workletNode.port.postMessage({ audio_sab: audio_sab, state_sab: state_sab });
 
@@ -97,39 +100,32 @@
         };
 
         workletNode.connect(audioSystem.audioContext.destination);
-
-        // The handler for when the DSP Worker has finished its work.
-        audioSystem.dspWorker.onmessage = (event) => {
-            if (event.data.type === 'ready') {
-                console.log("All systems ready.");
-                audioSystem.isReady = true;
-                statusElement.textContent = 'Ready. Click Start Audio.';
-            }
-            // Forward the 'data_produced' message to the worklet.
-            else if (event.data.type === 'data_produced') {
-                workletNode.port.postMessage({ type: 'data_produced' });
-            }
-        };
       }
 
       async function toggleAudio() {
-        if (!audioSystem.audioContext) await setupAudio();
-
-        if (!audioSystem.isReady) {
-            statusElement.textContent = "Please wait, DSP worker is initializing...";
-            return;
+        // On the first click, the context is null. We run the full, atomic setup.
+        if (!audioSystem.audioContext) {
+            try {
+                await setupAudio();
+            } catch (err) {
+                statusElement.textContent = `Error during setup: ${err.message}`;
+                console.error(err);
+                return;
+            }
         }
 
+        // Now we are guaranteed that the system is fully initialized.
         if (audioSystem.audioContext.state === 'running') {
             await audioSystem.audioContext.suspend();
             controlButton.textContent = 'Resume Audio';
+            statusElement.textContent = 'Status: Paused.';
         } else {
             await audioSystem.audioContext.resume();
             controlButton.textContent = 'Pause Audio';
+            statusElement.textContent = 'Status: Playing.';
         }
       }
 
-      controlButton.disabled = true;
     </script>
   </body>
 </html>
