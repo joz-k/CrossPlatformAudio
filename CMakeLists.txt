@@ -35,8 +35,7 @@ if(EMSCRIPTEN)
         "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/src/shell.html"
         "--bind"
         "-sALLOW_MEMORY_GROWTH=1"
-        "-sSHARED_MEMORY"
-        # We need HEAPF32 for the main thread to access memory.
+        "-pthread"
         "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,callMain,HEAPF32"
         "-sEXPORTED_FUNCTIONS=_malloc,_free,_main,_generate_audio_data,_set_sample_rate"
     )
