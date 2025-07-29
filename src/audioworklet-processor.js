@@ -46,6 +46,7 @@ class CppAudioProcessor extends AudioWorkletProcessor {
         } else {
             // Not enough data. Play silence to avoid glitches.
             for (const channel_data of output_channels) { channel_data.fill(0); }
+            console.log('AudioWorklet: buffer underun');
         }
 
         // Request more data if the buffer is running low.
